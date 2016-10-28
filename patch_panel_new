@@ -1,0 +1,154 @@
+#!/usr/bin/env ruby
+
+require 'rubygems'
+require 'bundler'
+require 'pp'
+require "awesome_print"
+
+Bundler.setup :default
+
+require 'gli'
+require 'trema'
+
+# patch_panel command
+module PatchPanelApp
+  extend GLI::App
+
+  desc 'Creates a new patch'
+  arg_name 'dpid port#1 port#2'
+  command :create do |c|
+    c.desc 'Location to find socket files'
+    c.flag [:S, :socket_dir], default_value: Trema::DEFAULT_SOCKET_DIR
+
+    c.action do |_global_options, options, args|
+      dpid = args[0].hex
+      port1 = args[1].to_i
+      port2 = args[2].to_i
+      Trema.trema_process('PatchPanel', options[:socket_dir]).controller.
+        create_patch(dpid, port1, port2)
+    end
+  end
+
+  desc 'Deletes a patch'
+  arg_name 'dpid port#1 port#2'
+  command :delete do |c|
+    c.desc 'Location to find socket files'
+    c.flag [:S, :socket_dir], default_value: Trema::DEFAULT_SOCKET_DIR
+
+    c.action do |_global_options, options, args|
+      dpid = args[0].hex
+      port1 = args[1].to_i
+      port2 = args[2].to_i
+      Trema.trema_process('PatchPanel', options[:socket_dir]).controller.
+        delete_patch(dpid, port1, port2)
+    end
+  end
+  
+  desc 'Creates a mirror patch'
+  arg_name 'dpid source_port monitor_port mirror_port'
+  command :create_mirror do |c|
+    c.desc 'Location to find socket files'
+    c.flag [:S, :socket_dir], default_value: Trema::DEFAULT_SOCKET_DIR
+
+    c.action do |_global_options, options, args|
+      dpid = args[0].hex
+	    source_port = args[1].to_i
+      monitor_port =args[2].to_i
+      mirror_port = args[3].to_i
+		  
+      Trema.trema_process('PatchPanel', options[:socket_dir]).controller.
+       create_mirror_patch(dpid, source_port, monitor_port, mirror_port)
+    end
+  end
+    
+  desc 'Activates Logging mode'
+  arg_name ''
+  command :log_start do |c|
+    c.desc 'Location to find socket files'
+    c.flag [:S, :socket_dir], default_value: Trema::DEFAULT_SOCKET_DIR
+
+    c.action do |_global_options, options, args|
+      
+      Trema.trema_process('PatchPanel', options[:socket_dir]).controller.
+         activate_log_mode()
+    end
+  end
+  
+   desc 'Deactivates Logging mode'
+  arg_name ''
+  command :log_stop do |c|
+    c.desc 'Location to find socket files'
+    c.flag [:S, :socket_dir], default_value: Trema::DEFAULT_SOCKET_DIR
+
+    c.action do |_global_options, options, args|
+      
+      Trema.trema_process('PatchPanel', options[:socket_dir]).controller.
+         deactivate_log_mode()
+    end
+  end
+  
+desc 'Prints patch and mirror patch'
+  arg_name 'dpid datalist patch mirror_patch'
+  command :list do |c|
+    c.desc 'Location to find socket files'
+    c.flag [:S, :socket_dir], default_value: Trema::DEFAULT_SOCKET_DIR
+
+    c.action do |_global_options, options, args|
+      dpid = args[0].hex
+      datalist = Trema.trema_process('PatchPanel', options[:socket_dir]).controller.
+        list_patch(dpid)
+      @output = datalist[0]
+      @output_mirror = datalist[1]
+      @loggedcommands = datalist[2]
+        
+		counter = 0.0
+      
+      print ("PATCHES \n")
+	
+    @output[dpid].each do |port|
+
+      counter = counter +1
+
+      if counter % 2 == 0		
+        print(" is connected to port ", port, "\n")
+
+      else		
+      print ("Port ")
+      print (port)
+		
+		end
+   end
+      
+      counter = 0.0
+    
+    print ("MIRRORINGS \n")
+	
+      @output_mirror[dpid].each do |port|
+		
+      if counter % 3 == 0		
+        print("Traffic from port ", port, "")		
+      end
+
+      if counter % 3 == 1		
+        print(" to port ", port, "")		
+      end
+        
+       if counter % 3 == 2		
+		     print(" is mirrored to port ", port, "\n")		
+      end
+        
+       counter = counter +1        		
+		  end     
+            
+     print ("LOGGED COMMANDS \n")
+    
+      @loggedcommands.each do |message|
+				print("", message, "\n")
+	
+      end
+     end
+  end
+  
+
+  exit run(ARGV)
+end
